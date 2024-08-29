@@ -225,17 +225,22 @@ def get_new_token(query_id):
 
     # Mencoba mendapatkan token hingga 3 kali
     for attempt in range(3):
-        print(f"\r{Fore.YELLOW+Style.BRIGHT}Mendapatkan token...", end="", flush=True)
-        response = requests.post(url, headers=headers, data=data)
-        if response.status_code == 200:
-            # print(f"\r{Fore.GREEN+Style.BRIGHT}Token berhasil dibuat", end="", flush=True)
+        print(f"\r{Fore.YELLOW+Style.BRIGHT}Mendapatkan token... (Attempt {attempt + 1})", end="", flush=True)
+        try:
+            response = requests.post(url, headers=headers, data=data)
+            response.raise_for_status()  # Raise an exception for bad status codes
             response_json = response.json()
+            print(f"\r{Fore.GREEN+Style.BRIGHT}Token berhasil dibuat", end="", flush=True)
             return response_json['token']['refresh']
-        else:
-            print(response.json())
-            print(f"\r{Fore.RED+Style.BRIGHT}Gagal mendapatkan token, percobaan {attempt + 1}", flush=True)
-    # Jika semua percobaan gagal
-
+        except requests.exceptions.RequestException as e:
+            print(f"\r{Fore.RED+Style.BRIGHT}Error saat request: {e}", flush=True)
+        except json.JSONDecodeError as e:
+            print(f"\r{Fore.RED+Style.BRIGHT}Error decoding JSON: {e}", flush=True)
+            print(f"Response content: {response.text}")
+        except KeyError as e:
+            print(f"\r{Fore.RED+Style.BRIGHT}Key error in response: {e}", flush=True)
+            print(f"Response JSON: {response_json}")
+        
     print(f"\r{Fore.RED+Style.BRIGHT}Gagal mendapatkan token setelah 3 percobaan.", flush=True)
     return None
 
@@ -307,11 +312,16 @@ def play_game(token):
     }
     try:
         response = requests.post('https://game-domain.blum.codes/api/v1/game/play', headers=headers)
-        return response.json()
-    except requests.exceptions.ConnectionError as e:
-        print(f"{Fore.RED+Style.BRIGHT}Gagal bermain game karena masalah koneksi: {e}")
-    except Exception as e:
-        print(f"{Fore.RED+Style.BRIGHT}Gagal bermain game karena error: {e}")
+        response.raise_for_status() 
+        game_data = response.json()
+        if 'gameId' not in game_data:
+            print(f"{Fore.RED+Style.BRIGHT}[ Play Game ] : Respons tidak mengandung 'gameId'")
+            return None
+        return game_data
+    except requests.exceptions.RequestException as e:
+        print(f"{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal memainkan game karena error: {e}")
+    except ValueError as e:
+        print(f"{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal parse JSON response: {e}")
     return None
 
 def claim_game(token, game_id, points):
@@ -558,6 +568,16 @@ while True:
         for index, query_id in enumerate(query_ids, start=1):
             token = get_new_token(query_id)  # Mendapatkan token baru
             user_info = get_user_info(token)
+            
+            if query_id:
+                token = get_new_token(query_id)
+                if token is None:
+                    print(f"{Fore.RED+Style.BRIGHT}Gagal mendapatkan token untuk query_id: {query_id}")
+                    continue  # Skip to the next query_id
+            else:
+                print(f"{Fore.RED+Style.BRIGHT}query_id kosong atau tidak valid")
+                continue  # Skip to the next query_id
+
             if user_info is None:
                 continue
             print(f"{Fore.BLUE+Style.BRIGHT}\r\n====[{Fore.WHITE+Style.BRIGHT}Akun ke-{index} {user_info['username']}{Fore.BLUE+Style.BRIGHT}]====")  
@@ -689,18 +709,21 @@ while True:
 
             while balance_info['playPasses'] > 0:
                 print(f"{Fore.CYAN+Style.BRIGHT}[ Play Game ] : Playing game...")
-                for attempt in range(5):
+                for attempt in range(8):
                     game_response = play_game(token)
-                    print(f"\r{Fore.CYAN+Style.BRIGHT}[ Play Game ] : Checking game...", end="", flush=True)
                     if game_response and 'gameId' in game_response:
                         break
                     else:
-                        print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal memainkan game, mencoba lagi...", flush=True)
-                        time.sleep(5)
-                if game_response is None:
-                    print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal memainkan game setelah 5 percobaan", flush=True)
+                        print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal memainkan game, mencoba lagi... (Attempt {attempt + 1}/10)", flush=True)
+                        time.sleep(10)
+                
+                if game_response is None or 'gameId' not in game_response:
+                    print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal memainkan game setelah 10 percobaan", flush=True)
                     break
-                # print(f"\r{Fore.GREEN+Style.BRIGHT}[ Play Game ] : Game Response: {game_response}", flush=True)
+
+                print(f"\r{Fore.GREEN+Style.BRIGHT}[ Play Game ] : Game dimulai dengan ID: {game_response['gameId']}", flush=True)
+                
+                # Lanjutkan dengan kode untuk claim game...
                 time.sleep(10)
                 claim_response = claim_game(token, game_response['gameId'], random.randint(256, 278))
                 while True:
@@ -709,7 +732,7 @@ while True:
                         claim_response = claim_game(token, game_response['gameId'], random.randint(256, 278))
                         time.sleep(5)
                     elif claim_response.text == '{"message":"game session not finished"}':
-                        time.sleep(5)  # Tunggu sebentar sebelum mencoba lagi
+                        time.sleep(10)  # Tunggu sebentar sebelum mencoba lagi
                         random_color = random.choice(available_colors)
                         print(f"\r{random_color+Style.BRIGHT}[ Play Game ] : Game belum selesai.. mencoba lagi", flush=True)
                         claim_response = claim_game(token, game_response['gameId'], random.randint(256, 278))
