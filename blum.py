@@ -43,7 +43,7 @@ while True:
         break
     elif tribe_selection == "2":
         print(Fore.YELLOW + Style.BRIGHT + "HAH !!! SIKE !!!, MODIF THE CODE BY YOURSELF IF YOU WANT TO CUSTOM JOIN THE TRIBE !!")
-        print(Fore.YELLOW + Style.BRIGHT + "Using default tribe: PENCAIRAN BANSOS (Public)")
+        print(Fore.YELLOW + Style.BRIGHT + "Using default tribe: Teguh Kontol (Public)")
         tribe_id = "0191a323-aa7c-737d-8c65-ddfee748ce0c"
         break
     else:
