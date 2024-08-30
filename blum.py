@@ -1,5 +1,5 @@
 # Made with ❤ by @adearman
-# Join tele channel for update t.me/ghalibie
+# Join tele channel for update https://t.me/blum/app?startapp=tribe_vwrtoeidiot-ref_LW9Vi7AN0o
 import argparse
 import random
 import requests
@@ -44,7 +44,7 @@ while True:
     elif tribe_selection == "2":
         print(Fore.YELLOW + Style.BRIGHT + "HAH !!! SIKE !!!, MODIF THE CODE BY YOURSELF IF YOU WANT TO CUSTOM JOIN THE TRIBE !!")
         print(Fore.YELLOW + Style.BRIGHT + "Using default tribe: PENCAIRAN BANSOS (Public)")
-        tribe_id = "a4578390-4329-4663-b83a-4186d52abafc"
+        tribe_id = "0191a323-aa7c-737d-8c65-ddfee748ce0c"
         break
     else:
         print(Fore.RED + Style.BRIGHT + "Invalid selection. Please select again.")
