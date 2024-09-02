@@ -81,6 +81,7 @@ def check_tasks(token):
                     elif task_status == 'NOT_STARTED':
                         print(f"{Fore.YELLOW+Style.BRIGHT}Starting Task: {task_title}")
                         start_task(token, lists['id'], task_title)
+                        time.sleep(5)
                         claim_task(token, lists['id'], task_title)
                     # Check for subtasks
                     subTasks = lists.get('subTasks', [])
@@ -716,7 +717,7 @@ while True:
                 
                 if game_response is None or 'gameId' not in game_response:
                     print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal memainkan game setelah 10 percobaan", flush=True)
-                    break
+                    break #kalo break bakal error dan looping ke awal kode
 
                 print(f"\r{Fore.GREEN+Style.BRIGHT}[ Play Game ] : Game dimulai dengan ID: {game_response['gameId']}", flush=True)
                 
