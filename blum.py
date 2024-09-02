@@ -36,15 +36,13 @@ def parse_arguments():
 while True:
     print(Fore.YELLOW + Style.BRIGHT + f"Select Tribe: ")
     print(Fore.YELLOW + Style.BRIGHT + f"1. [ Ghalibie ] Lounge")
-    print(Fore.YELLOW + Style.BRIGHT + f"2. Custom Tribe (Input your tribe id)")
+    print(Fore.YELLOW + Style.BRIGHT + f"2. Dogs Community")
     tribe_selection = input(Fore.YELLOW + Style.BRIGHT + "Select Tribe: ").strip()
     if tribe_selection == "1":
         tribe_id = "4cc96181-1cd3-4494-ae49-7b7cb0e81eff"
         break
     elif tribe_selection == "2":
-        print(Fore.YELLOW + Style.BRIGHT + "HAH !!! SIKE !!!, MODIF THE CODE BY YOURSELF IF YOU WANT TO CUSTOM JOIN THE TRIBE !!")
-        print(Fore.YELLOW + Style.BRIGHT + "Using default tribe: PENCAIRAN BANSOS (Public)")
-        tribe_id = "a4578390-4329-4663-b83a-4186d52abafc"
+        tribe_id = "0999c4b7-1bbd-4825-a7a0-afc1bfb3fff6"
         break
     else:
         print(Fore.RED + Style.BRIGHT + "Invalid selection. Please select again.")
@@ -596,7 +594,6 @@ while True:
 
                 print(f"\r{Fore.YELLOW+Style.BRIGHT}[ Balance ]: {balance_before}", flush=True)
                 tribe_info = check_tribe(token)
-                
                 print(f"\r{Fore.GREEN+Style.BRIGHT}[ Tribe ]: Checking tribe...", end="", flush=True)
                 time.sleep(1)
                 if tribe_info and tribe_info.get("message") == "NOT_FOUND":
