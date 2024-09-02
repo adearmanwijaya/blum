@@ -81,7 +81,8 @@ def check_tasks(token):
                     elif task_status == 'NOT_STARTED':
                         print(f"{Fore.YELLOW+Style.BRIGHT}Starting Task: {task_title}")
                         start_task(token, lists['id'], task_title)
-                        time.sleep(5)
+                        timerand = random.randint(4, 7)
+                        time.sleep(timerand)
                         claim_task(token, lists['id'], task_title)
                     # Check for subtasks
                     subTasks = lists.get('subTasks', [])
@@ -91,6 +92,8 @@ def check_tasks(token):
                         if subtask_status == 'NOT_STARTED':
                             print(f"{Fore.YELLOW+Style.BRIGHT}Starting Subtask: {subtask_title}")
                             start_subtask(token, subtask['id'], subtask_title)
+                            timerand = random.randint(4, 7)
+                            time.sleep(timerand)
                             claim_subtask(token, subtask['id'], subtask_title)
         else:
             print(f"{Fore.RED+Style.BRIGHT}\nFailed to get tasks")
