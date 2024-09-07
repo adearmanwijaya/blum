@@ -10,6 +10,27 @@ from colorama import init, Fore, Style
 init(autoreset=True)
 
 
+bot_token = "BOT_TOKEN"
+chat_id = "ID_TELE"
+
+def send_telegram_message(bot_token, chat_id, message):
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code == 200:
+            print(f"{Fore.GREEN+Style.BRIGHT}Notification sent successfully.")
+        else:
+            print(f"{Fore.RED+Style.BRIGHT}Failed to send notification. Status code: {response.status_code}")
+    except Exception as e:
+        print(f"{Fore.RED+Style.BRIGHT}Error sending notification: {str(e)}")
+
+
+
 total_balance_all_accounts = 0  # Initialize total balance variable
 start_time = datetime.datetime.now()  # Tentukan waktu mulai saat bot dijalankan
 
@@ -17,6 +38,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Blum BOT')
     parser.add_argument('--task', type=str, choices=['y', 'n'], help='Cek and Claim Task (y/n)')
     parser.add_argument('--reff', type=str, choices=['y', 'n'], help='Apakah ingin claim ref? (y/n, default n)')
+    parser.add_argument('--notify', type=str, choices=['y', 'n'], help='Apakah ingin mengirim notifikasi ke Telegram? (y/n, default n)')
     args = parser.parse_args()
 
     if args.task is None:
@@ -30,6 +52,12 @@ def parse_arguments():
         reff_input = input("Apakah ingin claim ref? (y/n, default n): ").strip().lower()
         # Jika pengguna hanya menekan enter, gunakan 'n' sebagai default
         args.reff = reff_input if reff_input in ['y', 'n'] else 'n'
+
+    if args.notify is None:
+        # Jika parameter --notify tidak diberikan, minta input dari pengguna
+        notify_input = input("Apakah ingin mengirim notifikasi ke Telegram? (y/n, default n): ").strip().lower()
+        # Jika pengguna hanya menekan enter, gunakan 'n' sebagai default
+        args.notify = notify_input if notify_input in ['y', 'n'] else 'n'
 
     return args
 
@@ -66,37 +94,45 @@ def check_tasks(token):
         'sec-fetch-site': 'same-site',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0'
     }
-   
+
     try:
         response = requests.get('https://game-domain.blum.codes/api/v1/tasks', headers=headers)
         if response.status_code == 200:
             tasks = response.json()
-            for task in tasks:
-                titlenya = task['title']
-                print(f"{Fore.YELLOW+Style.BRIGHT}Checking Task: {titlenya} Lists")
-                taskList = task.get('tasks', [])
-                for lists in taskList:
-                    task_status = lists.get('status', None)
-                    task_title = lists.get('title', None)
-                    if task_status == 'FINISHED':
-                        print(f"{Fore.CYAN+Style.BRIGHT}Task {task_title} already claimed")
-                    elif task_status == 'NOT_STARTED':
-                        print(f"{Fore.YELLOW+Style.BRIGHT}Starting Task: {task_title}")
-                        start_task(token, lists['id'], task_title)
-                        claim_task(token, lists['id'], task_title)
-                    # Check for subtasks
-                    subTasks = lists.get('subTasks', [])
-                    for subtask in subTasks:
-                        subtask_status = subtask.get('status', None)
-                        subtask_title = subtask.get('title', None)
-                        if subtask_status == 'NOT_STARTED':
-                            print(f"{Fore.YELLOW+Style.BRIGHT}Starting Subtask: {subtask_title}")
-                            start_subtask(token, subtask['id'], subtask_title)
-                            claim_subtask(token, subtask['id'], subtask_title)
+            for section in tasks:
+                subSections = section.get('subSections', [])
+                for subSection in subSections:
+                    titlenya = subSection['title']
+                    print(f"{Fore.YELLOW+Style.BRIGHT}Checking SubSection: {titlenya} Lists", flush=True)
+                    taskList = subSection.get('tasks', [])
+                    for lists in taskList:
+                        task_status = lists.get('status', None)
+                        task_title = lists.get('title', None)
+                        task_type = lists.get('type', None)
+                        if task_status == 'FINISHED':
+                            print(f"{Fore.CYAN+Style.BRIGHT}Task {task_title} already claimed", flush=True)
+                        elif task_status == 'NOT_STARTED':
+                            if task_type in ['PROGRESS_TARGET', 'OTHER_TYPES_THAT_DO_NOT_SUPPORT_START']:
+                                print(f"{Fore.YELLOW+Style.BRIGHT}Claiming Task: {task_title}", end="\r", flush=True)
+                                claim_task(token, lists['id'], task_title)
+                            else:
+                                print(f"{Fore.YELLOW+Style.BRIGHT}Starting Task: {task_title}", end="\r", flush=True)
+                                start_task(token, lists['id'], task_title)
+                                claim_task(token, lists['id'], task_title)
+                        # Check for subtasks
+                        subTasks = lists.get('subTasks', [])
+                        for subtask in subTasks:
+                            subtask_status = subtask.get('status', None)
+                            subtask_title = subtask.get('title', None)
+                            if subtask_status == 'NOT_STARTED':
+                                print(f"{Fore.YELLOW+Style.BRIGHT}Starting Subtask: {subtask_title}", end="\r", flush=True)
+                                start_subtask(token, subtask['id'], subtask_title)
+                                claim_subtask(token, subtask['id'], subtask_title)
         else:
-            print(f"{Fore.RED+Style.BRIGHT}\nFailed to get tasks")
+            print(f"{Fore.RED+Style.BRIGHT}Failed to get tasks", end="\r", flush=True)
     except Exception as e:
-        print(f"{Fore.RED+Style.BRIGHT}\nFailed to get tasks Error Code: {response.status_code} | {str(e)}")
+        print(f"{Fore.RED+Style.BRIGHT}Failed to get tasks Error Code: {response.status_code} | {str(e)}", end="\r", flush=True)
+ 
 def start_task(token, task_id,titlenya):
     url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/start'
     headers = {
@@ -117,12 +153,12 @@ def start_task(token, task_id,titlenya):
     try:
         response = requests.post(url, headers=headers)
         if response.status_code == 200:
-            print(f"{Fore.GREEN+Style.BRIGHT}\nTask {titlenya} started")
+            print(f"{Fore.GREEN+Style.BRIGHT}Task {titlenya} started")
         else:
-            print(f"{Fore.RED+Style.BRIGHT}\nFailed to start task {titlenya} {response.json()}")
+            print(f"{Fore.RED+Style.BRIGHT}Failed to start task {titlenya} {response.json()}")
         return 
     except:
-        print(f"{Fore.RED+Style.BRIGHT}\nFailed to start task {titlenya} {response.status_code} ")
+        print(f"{Fore.RED+Style.BRIGHT}Failed to start task {titlenya} {response.status_code} ")
 
 def start_subtask(token, subtask_id, title):
     url = f'https://game-domain.blum.codes/api/v1/tasks/{subtask_id}/start'
@@ -144,14 +180,14 @@ def start_subtask(token, subtask_id, title):
     try:
         response = requests.post(url, headers=headers)
         if response.status_code == 200:
-            print(f"{Fore.GREEN+Style.BRIGHT}\nSubtask {title} started")
+            print(f"{Fore.GREEN+Style.BRIGHT}Subtask {title} started")
         else:
-            print(f"{Fore.RED+Style.BRIGHT}\nFailed to start subtask {title} {response.json()}")
+            print(f"{Fore.RED+Style.BRIGHT}Failed to start subtask {title} {response.json()}")
     except Exception as e:
-        print(f"{Fore.RED+Style.BRIGHT}\nFailed to start subtask {title} due to error: {str(e)}")
+        print(f"{Fore.RED+Style.BRIGHT}Failed to start subtask {title} due to error: {str(e)}")
 
 def claim_subtask(token, subtask_id, title):
-    print(f"{Fore.YELLOW+Style.BRIGHT}\nClaiming subtask {title}")
+    print(f"{Fore.YELLOW+Style.BRIGHT}Claiming subtask {title}")
     url = f'https://game-domain.blum.codes/api/v1/tasks/{subtask_id}/claim'
     headers = {
         'Authorization': f'Bearer {token}',
@@ -171,14 +207,14 @@ def claim_subtask(token, subtask_id, title):
     try:
         response = requests.post(url, headers=headers)
         if response.status_code == 200:
-            print(f"{Fore.CYAN+Style.BRIGHT}\nSubtask {title} claimed")
+            print(f"{Fore.CYAN+Style.BRIGHT}Subtask {title} claimed")
         else:
-            print(f"{Fore.RED+Style.BRIGHT}\nFailed to claim subtask {title}")
+            print(f"{Fore.RED+Style.BRIGHT}Failed to claim subtask {title}")
     except Exception as e:
-        print(f"{Fore.RED+Style.BRIGHT}\nFailed to claim subtask {title} due to error: {str(e)}")
+        print(f"{Fore.RED+Style.BRIGHT}Failed to claim subtask {title} due to error: {str(e)}")
 
 def claim_task(token, task_id,titlenya):
-    print(f"{Fore.YELLOW+Style.BRIGHT}\nClaiming task {titlenya}")
+    # print(f"{Fore.YELLOW+Style.BRIGHT}\nClaiming task {titlenya}")
     url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/claim'
     headers = {
         'Authorization': f'Bearer {token}',
@@ -198,11 +234,11 @@ def claim_task(token, task_id,titlenya):
     try:
         response = requests.post(url, headers=headers)
         if response.status_code == 200:
-            print(f"{Fore.CYAN+Style.BRIGHT}\nTask {titlenya} claimed")
+            print(f"{Fore.CYAN+Style.BRIGHT}Task {titlenya} claimed")
         else:
-            print(f"{Fore.RED+Style.BRIGHT}\nFailed to claim task {titlenya}")
+            print(f"{Fore.RED+Style.BRIGHT}Failed to claim task {titlenya}")
     except:
-        print(f"{Fore.RED+Style.BRIGHT}\nFailed to claim task {titlenya} {response.status_code} ")
+        print(f"{Fore.RED+Style.BRIGHT}Failed to claim task {titlenya} {response.status_code} ")
 
         
 def get_new_token(query_id):
@@ -221,7 +257,7 @@ def get_new_token(query_id):
     data = json.dumps({"query": query_id})
 
     # URL endpoint
-    url = "https://gateway.blum.codes/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP"
+    url = "https://user-domain.blum.codes/api/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP"
 
     # Mencoba mendapatkan token hingga 3 kali
     for attempt in range(3):
@@ -372,7 +408,7 @@ def start_farming(token):
     return None
 
 def refresh_token(old_refresh_token):
-    url = 'https://gateway.blum.codes/v1/auth/refresh'
+    url = 'https://user-domain.blum.codes/v1/auth/refresh'
     headers = {
         'accept': 'application/json, text/plain, */*',
         'accept-language': 'en-US,en;q=0.9',
@@ -412,7 +448,7 @@ def check_balance_friend(token):
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0'
     }
     try:
-        response = requests.get('https://gateway.blum.codes/v1/friends/balance', headers=headers)
+        response = requests.get('https://user-domain.blum.codes/api/v1/friends/balance', headers=headers)
         return response.json()
     except requests.exceptions.ConnectionError as e:
         print(f"{Fore.RED+Style.BRIGHT}Gagal mendapatkan saldo teman karena masalah koneksi: {e}")
@@ -437,7 +473,7 @@ def claim_balance_friend(token):
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0'
     }
     try:
-        response = requests.post('https://gateway.blum.codes/v1/friends/claim', headers=headers)
+        response = requests.post('https://user-domain.blum.codes/api/v1/friends/claim', headers=headers)
         return response.json()
     except requests.exceptions.ConnectionError as e:
         print(f"{Fore.RED+Style.BRIGHT}Gagal mengklaim saldo teman karena masalah koneksi: {e}")
@@ -532,8 +568,7 @@ def print_welcome_message():
 █▄█ █▀█ █▀█ █▄▄ █ █▄█ █ ██▄
           """)
     print(Fore.GREEN + Style.BRIGHT + "Blum BOT")
-    print(Fore.YELLOW + Style.BRIGHT + "Free Konsultasi Join Telegram Channel: https://t.me/ghalibie")
-    print(Fore.BLUE + Style.BRIGHT + "Buy me a coffee :) 0823 2367 3487 GOPAY / DANA")
+    print(Fore.YELLOW + Style.BRIGHT + "Bot ini dikembangkan untuk membantu anda dalam mendapatkan mempelajari python code di game Blum")
     print(Fore.RED + Style.BRIGHT + "NOT FOR SALE ! Ngotak dikit bang. Ngoding susah2 kau tinggal rename :)\n\n")
     current_time = datetime.datetime.now()
     up_time = current_time - start_time
@@ -548,6 +583,7 @@ checked_tasks = {}
 args = parse_arguments()
 cek_task_enable = args.task
 claim_ref_enable = args.reff
+notif_tele_enable = args.notify
 with open('tgwebapp.txt', 'r') as file:
     query_ids = file.read().splitlines()
 while True:
@@ -571,10 +607,11 @@ while True:
                 continue
             else:
                 available_balance_before = balance_info['availableBalance']  # asumsikan ini mengambil nilai dari JSON
-                total_balance_all_accounts += float(available_balance_before)  # Convert to float before adding
+ 
                 balance_before = f"{float(available_balance_before):,.0f}".replace(",", ".")
-
+                total_balance_all_accounts += float(available_balance_before)  # Use the original float value
                 print(f"\r{Fore.YELLOW+Style.BRIGHT}[ Balance ]: {balance_before}", flush=True)
+ 
                 tribe_info = check_tribe(token)
                 
                 print(f"\r{Fore.GREEN+Style.BRIGHT}[ Tribe ]: Checking tribe...", end="", flush=True)
@@ -697,16 +734,16 @@ while True:
                     else:
                         print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal memainkan game, mencoba lagi...", flush=True)
                         time.sleep(5)
-                if game_response is None:
+                if game_response is None or 'gameId' not in game_response:
                     print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal memainkan game setelah 5 percobaan", flush=True)
                     break
                 # print(f"\r{Fore.GREEN+Style.BRIGHT}[ Play Game ] : Game Response: {game_response}", flush=True)
                 time.sleep(10)
-                claim_response = claim_game(token, game_response['gameId'], random.randint(256, 278))
+                claim_response = claim_game(token, game_response.get('gameId'), random.randint(256, 278))
                 while True:
                     if claim_response is None:
                         print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Gagal mengklaim game, mencoba lagi...", flush=True)
-                        claim_response = claim_game(token, game_response['gameId'], random.randint(256, 278))
+                        claim_response = claim_game(token, game_response.get('gameId'), random.randint(256, 278))
                         time.sleep(5)
                     elif claim_response.text == '{"message":"game session not finished"}':
                         time.sleep(5)  # Tunggu sebentar sebelum mencoba lagi
@@ -743,11 +780,27 @@ while True:
                         print(f"\r{Fore.RED+Style.BRIGHT}[ Play Game ] : Tidak ada tiket tersisa.", flush=True)
                         break
 
-        print(f"\n{Fore.GREEN+Style.BRIGHT}Total Balance from all accounts: {total_balance_all_accounts} ")  # Print total balance   
+ 
+        print(f"\n{Fore.GREEN+Style.BRIGHT}Total Balance from all accounts: {total_balance_all_accounts:,.0f}".replace(",", "."))  # Print total balance
         print(f"\n{Fore.GREEN+Style.BRIGHT}========={Fore.WHITE+Style.BRIGHT}Semua akun berhasil di proses{Fore.GREEN+Style.BRIGHT}=========", end="", flush=True)
+        if notif_tele_enable == 'y':
+            total_accounts = len(query_ids)
+    
+            message = f"""          
+                    🍀 <b>BLUM Report</b>
+
+            📁 <b>Total Accounts:</b> {total_accounts}
+            💰 <b>Total Balance:</b> {total_balance_all_accounts:,.0f}
+
+
+            == Sirkel Generous ==
+            """
+            send_telegram_message(bot_token, chat_id, message)
+
         print(f"\r\n\n{Fore.GREEN+Style.BRIGHT}Refreshing token...", end="", flush=True)
+        total_balance_all_accounts = 0
         import sys
-        waktu_tunggu = 1800  # 5 menit dalam detik
+        waktu_tunggu = 3600  # 5 menit dalam detik
         for detik in range(waktu_tunggu, 0, -1):
             sys.stdout.write(f"\r{Fore.CYAN}Menunggu waktu claim berikutnya dalam {Fore.CYAN}{Fore.WHITE}{detik // 60} menit {Fore.WHITE}{detik % 60} detik")
             sys.stdout.flush()
